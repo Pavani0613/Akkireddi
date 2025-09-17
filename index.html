@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Personal Finance Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    h1, h3 {
+      text-align: center;
+    }
+
+    form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    input, select, button {
+      padding: 10px;
+      flex: 1;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    canvas {
+      max-width: 100%;
+    }
+
+    #summary, #average, #highest {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+
+    #summary {
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    #highest {
+      color: #d9534f;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Personal Finance Tracker</h1>
+
+    <!-- Form -->
+    <form id="expense-form">
+      <input type="text" id="desc" placeholder="Description" required />
+      <input type="number" id="amount" placeholder="Amount" required />
+      <select id="category">
+        <option value="Groceries">Groceries</option>
+        <option value="Entertainment">Entertainment</option>
+        <option value="Transport">Transport</option>
+        <option value="Education">Education</option>
+        <option value="EMI">EMI</option>
+        <option value="Savings">Savings</option>
+        <option value="Other">Other</option>
+      </select>
+      <button type="button" id="add-item">Add Item</button>
+    </form>
+
+    <!-- Graph -->
+    <h3>Graph Calculation</h3>
+    <canvas id="expense-chart" height="200"></canvas>
+    <div id="summary">Total Spent: ₹0</div>
+    <div id="average">Average per Category: ₹0</div>
+    <div id="highest">Highest Spending Category: None</div>
+
+    <!-- Expense Table -->
+    <h3>Expense Details</h3>
+    <table id="expense-table">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Amount (₹)</th>
+          <th>Category</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const addBtn = document.getElementById("add-item");
+    const chartCanvas = document.getElementById("expense-chart");
+    const summaryDiv = document.getElementById("summary");
+    const averageDiv = document.getElementById("average");
+    const highestDiv = document.getElementById("highest");
+    const tableBody = document.querySelector("#expense-table tbody");
+
+    let expenses = [];
+    let chart;
+
+    const categoryColors = {
+      "Groceries": "#FF6384",
+      "Entertainment": "#36A2EB",
+      "Transport": "#FFCE56",
+      "Education": "#4BC0C0",
+      "EMI": "#9966FF",
+      "Savings": "#FF9F40",
+      "Other": "#AAAAAA"
+    };
+
+    // Add item
+    addBtn.addEventListener("click", function () {
+      const desc = document.getElementById("desc").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+      const category = document.getElementById("category").value;
+
+      if (!desc || !amount || !category) return;
+
+      expenses.push({ desc, amount, category });
+
+      updateChart();
+      updateSummary();
+      updateTable();
+
+      document.getElementById("expense-form").reset();
+    });
+
+    // Update chart
+    function updateChart() {
+      const categoryTotals = {};
+      expenses.forEach(exp => {
+        categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
+      });
+
+      const labels = Object.keys(categoryTotals);
+      const data = Object.values(categoryTotals);
+      const colors = labels.map(label => categoryColors[label]);
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(chartCanvas, {
+        type: "doughnut",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Expenses by Category (₹)",
+            data: data,
+            backgroundColor: colors
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" }
+          }
+        }
+      });
+    }
+
+    // Update total, average, highest
+    function updateSummary() {
+      const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      summaryDiv.textContent = Total Spent: ₹${total.toFixed(2)};
+
+      const categories = [...new Set(expenses.map(exp => exp.category))];
+      const avg = categories.length > 0 ? total / categories.length : 0;
+      averageDiv.textContent = Average per Category: ₹${avg.toFixed(2)};
+
+      // Find highest spending category
+      const categoryTotals = {};
+      expenses.forEach(exp => {
+        categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
+      });
+
+      let highestCategory = "None";
+      let maxSpent = 0;
+      for (let cat in categoryTotals) {
+        if (categoryTotals[cat] > maxSpent) {
+          highestCategory = cat;
+          maxSpent = categoryTotals[cat];
+        }
+      }
+
+      highestDiv.textContent = Highest Spending Category: ${highestCategory} (₹${maxSpent.toFixed(2)});
+    }
+
+    // Update table with all expenses
+    function updateTable() {
+      tableBody.innerHTML = "";
+      expenses.forEach(exp => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${exp.desc}</td>
+          <td>₹${exp.amount.toFixed(2)}</td>
+          <td>${exp.category}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+  </script>
+
+</body>
+</html>
